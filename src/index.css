@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Theme variables ─────────────────────────────────────────────────────────── */
+
+:root {
+  /* Dark mode (default) */
+  --bg: #0e0e0e;
+  --bg-card: #161616;
+  --bg-border: #2a2a2a;
+  --text: #e0e0e0;
+  --text-muted: #888888;
+}
+
+:root.light {
+  --bg: #f5f5f3;
+  --bg-card: #ffffff;
+  --bg-border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+}
+
+/* ── Component classes ───────────────────────────────────────────────────────── */
+
+@layer components {
+  /* Primary CTA button — inverts fg/bg so it always contrasts with the page */
+  .btn-primary {
+    background-color: var(--text);
+    color: var(--bg);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 0.5rem;
+    padding: 0.625rem 1rem;
+    transition: opacity 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-size: 16px;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--bg-border);
+    border-radius: 2px;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator {
+    filter: invert(0.5);
+    cursor: pointer;
+  }
+
+  select option {
+    background-color: var(--bg-card);
+    color: var(--text);
+  }
+}
+
+/* ── Utilities ────────────────────────────────────────────────────────────────── */
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
