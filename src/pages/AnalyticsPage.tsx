@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import CompletionLineChart from '../components/analytics/CompletionLineChart'
 import CategoryRadarChart from '../components/analytics/CategoryRadarChart'
 import HeatmapGrid from '../components/analytics/HeatmapGrid'
@@ -5,25 +6,52 @@ import StreakCard from '../components/analytics/StreakCard'
 import { useHistory } from '../hooks/useHistory'
 import { useStats } from '../hooks/useStats'
 
+const PERIODS = [
+  { label: '7d',  days: 7 },
+  { label: '30d', days: 30 },
+  { label: '90d', days: 90 },
+]
+
 export default function AnalyticsPage() {
-  const history30 = useHistory(30)
-  const history90 = useHistory(90)
-  const stats = useStats(7)
+  const [period, setPeriod] = useState(30)
+
+  const history = useHistory(period)
+  const history90 = useHistory(90)   // heatmap always uses 90 days
+  const stats = useStats(period)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
-      <h1 className="font-mono text-xs uppercase tracking-widest text-text-muted">Analytics</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="font-mono text-xs uppercase tracking-widest text-text-muted">Analytics</h1>
 
-      {/* Streak */}
-      {history30.data && <StreakCard data={history30.data} />}
+        {/* Period selector */}
+        <div className="flex gap-1 bg-bg-card border border-bg-border rounded-lg p-1">
+          {PERIODS.map(({ label, days }) => (
+            <button
+              key={days}
+              onClick={() => setPeriod(days)}
+              className={`font-mono text-xs px-3 py-1.5 rounded-md transition-colors ${
+                period === days
+                  ? 'bg-bg-border text-primary'
+                  : 'text-text-muted hover:text-primary'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Streak — based on selected period */}
+      {history.data && <StreakCard data={history.data} />}
 
       {/* Line chart */}
-      {history30.isLoading ? (
-        <div className="bg-bg-card border border-bg-border rounded-lg p-5 font-mono text-xs text-text-muted">
+      {history.isLoading ? (
+        <div className="bg-bg-card border border-bg-border rounded-xl p-5 font-mono text-xs text-text-muted">
           loading...
         </div>
-      ) : history30.data ? (
-        <CompletionLineChart data={history30.data} />
+      ) : history.data ? (
+        <CompletionLineChart data={history.data} />
       ) : null}
 
       {/* Radar + Heatmap */}
@@ -32,9 +60,9 @@ export default function AnalyticsPage() {
         {history90.data && <HeatmapGrid data={history90.data} />}
       </div>
 
-      {history30.error && (
+      {history.error && (
         <p className="font-mono text-xs text-red-400">
-          Error loading analytics: {(history30.error as Error).message}
+          Error: {(history.error as Error).message}
         </p>
       )}
     </div>
