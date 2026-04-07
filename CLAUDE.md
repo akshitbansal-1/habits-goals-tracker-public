@@ -73,14 +73,10 @@ The `server.js` Express file mirrors all these routes exactly for local developm
 | `api/history.js` | GET | `/api/history?days=` | Days clamped 1–365 |
 | `api/stats.js` | GET | `/api/stats?days=` | Category-level stats |
 | `api/health.js` | GET | `/api/health` | DB connectivity check |
-| `api/items/index.js` | GET+POST | `/api/items` | List all items / create item |
-| `api/items/[id].js` | PUT+DELETE | `/api/items/:id` | Update / soft-or-hard delete |
-| `api/goals/index.js` | GET+POST | `/api/goals` | List goals with computed progress / create goal |
-| `api/goals/[id].js` | PUT+DELETE | `/api/goals/:id` | Update (syncs habit links) / delete |
-| `api/folders/index.js` | GET+POST | `/api/folders` | List folders with note_count / create folder |
-| `api/folders/[id].js` | PUT+DELETE | `/api/folders/:id` | Update / delete folder |
-| `api/notes/index.js` | GET+POST | `/api/notes?folder_id=` | List notes in folder / create note |
-| `api/notes/[id].js` | GET+PUT+DELETE | `/api/notes/:id` | Get note with content / update / delete |
+| `api/items.js` | GET+POST+PUT+DELETE | `/api/items`, `/api/items/:id` | List/create items; update/soft-or-hard-delete by id |
+| `api/goals.js` | GET+POST+PUT+DELETE | `/api/goals`, `/api/goals/:id` | List goals with computed progress / create; update (syncs habit links) / delete by id |
+| `api/folders.js` | GET+POST+PUT+DELETE | `/api/folders`, `/api/folders/:id` | List folders with note_count / create; update / delete by id |
+| `api/notes.js` | GET+POST+PUT+DELETE | `/api/notes?folder_id=`, `/api/notes/:id` | List notes in folder / create; get with content / update / delete by id |
 | `api/ask.js` | POST | `/api/ask` | AI query with tool use; body: `{ question, provider }` (`provider`: `'anthropic'` or `'google'`) |
 
 **Ask feature:** `api/_tools.js` defines the agentic loop shared by both providers. Tools available to the AI: `get_habits_for_date`, `get_history`, `get_stats`, `get_goals`, `get_items`, `get_habit_completions`. Anthropic uses `claude-sonnet-4-6`; Google uses `gemini-2.0-flash`. Max 10 tool-call iterations per request.
