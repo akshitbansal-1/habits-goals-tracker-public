@@ -9,6 +9,8 @@ import DashboardPage from './pages/DashboardPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import GoalsPage from './pages/GoalsPage'
 import ManagePage from './pages/ManagePage'
+import AskPage from './pages/AskPage'
+import NotesPage from './pages/NotesPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,6 +30,8 @@ const router = createBrowserRouter([
       { path: 'analytics', element: <AnalyticsPage /> },
       { path: 'goals', element: <GoalsPage /> },
       { path: 'manage', element: <ManagePage /> },
+      { path: 'ask', element: <AskPage /> },
+      { path: 'notes', element: <NotesPage /> },
     ],
   },
 ])

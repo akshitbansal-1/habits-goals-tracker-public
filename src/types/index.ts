@@ -67,3 +67,39 @@ export interface GoalFormData {
   deadline: string
   linked_item_ids: number[]
 }
+
+export interface AskEvidence {
+  tool: string
+  params: Record<string, unknown>
+  data: unknown
+}
+
+export interface AskResponse {
+  answer: string
+  evidence: AskEvidence[]
+}
+
+export type AskProvider = 'anthropic' | 'google'
+
+export interface NoteFolder {
+  id: number
+  name: string
+  icon: string
+  color: string
+  sort_order: number
+  created_at: string
+  note_count: number
+}
+
+export interface NoteListItem {
+  id: number
+  folder_id: number
+  title: string
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Note extends NoteListItem {
+  content: string
+}

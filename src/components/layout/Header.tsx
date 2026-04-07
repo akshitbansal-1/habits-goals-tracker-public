@@ -33,6 +33,8 @@ export default function Header({ items, currentDate }: HeaderProps) {
             <NavLink to="/analytics" className={navClass}>Analytics</NavLink>
             <NavLink to="/goals" className={navClass}>Goals</NavLink>
             <NavLink to="/manage" className={navClass}>Manage</NavLink>
+            <NavLink to="/notes" className={navClass}>Notes</NavLink>
+            <NavLink to="/ask" className={navClass}>Ask</NavLink>
           </nav>
         </div>
 
@@ -65,6 +67,8 @@ export default function Header({ items, currentDate }: HeaderProps) {
           { to: '/analytics', label: 'Analytics' },
           { to: '/goals', label: 'Goals' },
           { to: '/manage', label: 'Manage' },
+          { to: '/notes', label: 'Notes' },
+          { to: '/ask', label: 'Ask' },
         ].map(({ to, label, end }) => (
           <NavLink
             key={to}

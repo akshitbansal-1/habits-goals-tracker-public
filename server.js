@@ -4,6 +4,9 @@ import cors from 'cors'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
+import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+import { createExecutor, askWithAnthropic, askWithGemini } from './api/_tools.js'
 import 'dotenv/config'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -270,6 +273,147 @@ app.delete('/api/goals/:id', async (req, res) => {
   const id = parseInt(req.params.id)
   try {
     const result = await pool.query('DELETE FROM goals WHERE id = $1 RETURNING id', [id])
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' })
+    res.json({ deleted: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// ─── Ask (AI Q&A) ─────────────────────────────────────────────────────────────
+
+const askToolExecutor = createExecutor(pool)
+
+app.post('/api/ask', async (req, res) => {
+  const { question, provider = 'anthropic' } = req.body
+  if (!question?.trim()) return res.status(400).json({ error: 'question required' })
+
+  try {
+    let result
+    if (provider === 'google') {
+      if (!process.env.GEMINI_API_KEY) return res.status(400).json({ error: 'GEMINI_API_KEY not configured' })
+      const geminiClient = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+      result = await askWithGemini(geminiClient, question.trim(), askToolExecutor)
+    } else {
+      if (!process.env.ANTHROPIC_API_KEY) return res.status(400).json({ error: 'ANTHROPIC_API_KEY not configured' })
+      const anthropicClient = new Anthropic()
+      result = await askWithAnthropic(anthropicClient, question.trim(), askToolExecutor)
+    }
+    res.json(result)
+  } catch (err) {
+    console.error('ask error:', err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ─── Folders CRUD ─────────────────────────────────────────────────────────────
+
+app.get('/api/folders', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT f.*, COUNT(n.id)::int AS note_count
+      FROM note_folders f
+      LEFT JOIN notes n ON n.folder_id = f.id
+      GROUP BY f.id
+      ORDER BY f.sort_order, f.created_at
+    `)
+    res.json(result.rows)
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.post('/api/folders', async (req, res) => {
+  const { name, icon = '📁', color = 'default', sort_order = 0 } = req.body
+  if (!name?.trim()) return res.status(400).json({ error: 'name required' })
+  try {
+    const result = await pool.query(
+      'INSERT INTO note_folders (name, icon, color, sort_order) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name.trim(), icon, color, sort_order]
+    )
+    res.status(201).json({ ...result.rows[0], note_count: 0 })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.put('/api/folders/:id', async (req, res) => {
+  const id = parseInt(req.params.id)
+  const { name, icon, color, sort_order } = req.body
+  try {
+    const result = await pool.query(
+      `UPDATE note_folders SET
+         name = COALESCE($1, name), icon = COALESCE($2, icon),
+         color = COALESCE($3, color), sort_order = COALESCE($4, sort_order)
+       WHERE id = $5 RETURNING *`,
+      [name?.trim() || null, icon || null, color || null,
+       sort_order !== undefined ? sort_order : null, id]
+    )
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' })
+    res.json(result.rows[0])
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.delete('/api/folders/:id', async (req, res) => {
+  const id = parseInt(req.params.id)
+  try {
+    const result = await pool.query('DELETE FROM note_folders WHERE id = $1 RETURNING id', [id])
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' })
+    res.json({ deleted: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// ─── Notes CRUD ───────────────────────────────────────────────────────────────
+
+app.get('/api/notes', async (req, res) => {
+  const folder_id = parseInt(req.query.folder_id)
+  if (isNaN(folder_id)) return res.status(400).json({ error: 'folder_id required' })
+  try {
+    const result = await pool.query(
+      `SELECT id, folder_id, title, sort_order, created_at, updated_at
+       FROM notes WHERE folder_id = $1 ORDER BY updated_at DESC`,
+      [folder_id]
+    )
+    res.json(result.rows)
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.post('/api/notes', async (req, res) => {
+  const { folder_id, title = 'Untitled', content = '' } = req.body
+  if (!folder_id) return res.status(400).json({ error: 'folder_id required' })
+  try {
+    const result = await pool.query(
+      'INSERT INTO notes (folder_id, title, content) VALUES ($1, $2, $3) RETURNING *',
+      [folder_id, title.trim() || 'Untitled', content]
+    )
+    res.status(201).json(result.rows[0])
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.get('/api/notes/:id', async (req, res) => {
+  const id = parseInt(req.params.id)
+  try {
+    const result = await pool.query('SELECT * FROM notes WHERE id = $1', [id])
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' })
+    res.json(result.rows[0])
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.put('/api/notes/:id', async (req, res) => {
+  const id = parseInt(req.params.id)
+  const { title, content } = req.body
+  try {
+    const result = await pool.query(
+      `UPDATE notes SET
+         title = COALESCE($1, title),
+         content = COALESCE($2, content)
+       WHERE id = $3 RETURNING *`,
+      [title !== undefined ? (title.trim() || 'Untitled') : null,
+       content !== undefined ? content : null, id]
+    )
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' })
+    res.json(result.rows[0])
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.delete('/api/notes/:id', async (req, res) => {
+  const id = parseInt(req.params.id)
+  try {
+    const result = await pool.query('DELETE FROM notes WHERE id = $1 RETURNING id', [id])
     if (!result.rows.length) return res.status(404).json({ error: 'Not found' })
     res.json({ deleted: true })
   } catch (err) { res.status(500).json({ error: err.message }) }

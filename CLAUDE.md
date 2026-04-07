@@ -22,12 +22,14 @@ No test setup exists in this project.
 Requires a `.env` file with:
 ```
 DATABASE_URL=postgres://...
+ANTHROPIC_API_KEY=...   # Required for Ask feature (Anthropic provider)
+GEMINI_API_KEY=...      # Required for Ask feature (Google provider)
 ```
 
 The app uses Supabase (cloud PostgreSQL). SSL is enabled with `rejectUnauthorized: false`.
 Use the Supabase **pooler URL** (port 6543) for `DATABASE_URL`, not the direct connection URL (port 5432).
 
-When deploying to Vercel: add `DATABASE_URL` in the Vercel project dashboard under Environment Variables.
+When deploying to Vercel: add all env vars in the Vercel project dashboard under Environment Variables.
 
 ## Architecture
 
@@ -40,9 +42,9 @@ When deploying to Vercel: add `DATABASE_URL` in the Vercel project dashboard und
 
 - `main.tsx` — App entry, ThemeProvider + React Query + React Router
 - `App.tsx` — Layout shell with sticky `Header`
-- `pages/` — 4 pages: `DashboardPage`, `AnalyticsPage`, `GoalsPage`, `ManagePage`
+- `pages/` — 6 pages: `DashboardPage`, `AnalyticsPage`, `GoalsPage`, `ManagePage`, `NotesPage`, `AskPage`
 - `components/` — Organized by feature: `layout/`, `dashboard/`, `analytics/`, `goals/`, `manage/`, `ui/`
-- `hooks/` — React Query hooks: `useToday`, `useHistory`, `useStats`, `useItems`, `useGoals`
+- `hooks/` — React Query hooks: `useToday`, `useHistory`, `useStats`, `useItems`, `useGoals`, `useNotes`, `useAsk`
 - `lib/api.ts` — Typed `fetch` wrappers for all API endpoints
 - `lib/quotes.ts` — Static motivational quotes array (~30 entries)
 - `lib/theme.tsx` — Theme context (`useTheme`, `useChartColors`); dark/light mode via CSS vars
@@ -75,19 +77,29 @@ The `server.js` Express file mirrors all these routes exactly for local developm
 | `api/items/[id].js` | PUT+DELETE | `/api/items/:id` | Update / soft-or-hard delete |
 | `api/goals/index.js` | GET+POST | `/api/goals` | List goals with computed progress / create goal |
 | `api/goals/[id].js` | PUT+DELETE | `/api/goals/:id` | Update (syncs habit links) / delete |
+| `api/folders/index.js` | GET+POST | `/api/folders` | List folders with note_count / create folder |
+| `api/folders/[id].js` | PUT+DELETE | `/api/folders/:id` | Update / delete folder |
+| `api/notes/index.js` | GET+POST | `/api/notes?folder_id=` | List notes in folder / create note |
+| `api/notes/[id].js` | GET+PUT+DELETE | `/api/notes/:id` | Get note with content / update / delete |
+| `api/ask.js` | POST | `/api/ask` | AI query with tool use; body: `{ question, provider }` (`provider`: `'anthropic'` or `'google'`) |
+
+**Ask feature:** `api/_tools.js` defines the agentic loop shared by both providers. Tools available to the AI: `get_habits_for_date`, `get_history`, `get_stats`, `get_goals`, `get_items`, `get_habit_completions`. Anthropic uses `claude-sonnet-4-6`; Google uses `gemini-2.0-flash`. Max 10 tool-call iterations per request.
 
 **Date handling:** `api/_db.js` sets `types.setTypeParser(1082, val => val)` so PostgreSQL `DATE` columns return as `'YYYY-MM-DD'` strings rather than JavaScript `Date` objects. The same parser is applied in `server.js`.
 
 ### Database
 
 **`schema.sql`** — Original tables: `items` and `daily_logs`  
-**`migrations/001_add_goals.sql`** — Run once against Supabase to add `goals` and `habit_goal_links` tables
+**`migrations/001_add_goals.sql`** — Adds `goals` and `habit_goal_links` tables  
+**`migrations/002_add_notes.sql`** — Adds `note_folders` and `notes` tables; creates `notes_updated_at` trigger; inserts default "Quick Notes" folder
 
 Tables:
 - `items` — Master habit list: `name`, `description`, `category` (meal|skincare|habit), `sort_order`, `active`
 - `daily_logs` — Per-day completion records: unique on `(item_id, log_date)`
 - `goals` — Goal tracking: `title`, `identity_statement`, `why_it_matters`, `target_completions`, `deadline`, `status`
 - `habit_goal_links` — Many-to-many: links habits to goals for progress counting
+- `note_folders` — Folders for notes: `name`, `icon`, `color`, `sort_order`
+- `notes` — Notes: `folder_id` (FK → note_folders), `title`, `content`, `sort_order`; `updated_at` auto-updated via trigger
 
 **Goal progress** is computed via SQL JOIN at query time — counts completions of linked habits from the goal's `created_at` date.
 
